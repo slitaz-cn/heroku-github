@@ -1,0 +1,50 @@
+daemon off;
+# Heroku dynos have at least 4 cores.
+worker_processes <%= ENV['NGINX_WORKERS'] || 4 %>;
+
+events {
+  use epoll;
+  accept_mutex on;
+  worker_connections <%= ENV['NGINX_WORKER_CONNECTIONS'] || 1024 %>;
+}
+
+http {
+
+  log_format l2met 'measure#nginx.service=$request_time request_id=$http_x_request_id';
+  access_log <%= ENV['NGINX_ACCESS_LOG_PATH'] || 'logs/nginx/access.log' %> l2met;
+  error_log <%= ENV['NGINX_ERROR_LOG_PATH'] || 'logs/nginx/error.log' %>;
+
+  # Must read the body in 5 seconds.
+  client_body_timeout <%= ENV['NGINX_CLIENT_BODY_TIMEOUT'] || 5 %>;
+
+  server {
+		listen <%= ENV["PORT"] %>;
+		keepalive_timeout 5;
+            
+                location = /compressiontest/gzip.html {
+                        return 403;
+                }
+
+		location / {
+                        proxy_set_header Accept-Encoding "";
+			proxy_pass https://github.com/;
+                        proxy_cookie_domain .github.com ghecoo.herokuapp.com;
+			proxy_http_version 1.1;
+			proxy_buffering off;
+                        sub_filter_types *;
+                        sub_filter_once off;
+			sub_filter 'www.github.com' 'ghecoo.herokuapp.com';
+		}
+
+		location /ecoo/ {
+                        proxy_set_header Accept-Encoding "";
+			proxy_pass http://www.ecoo.top:8082/;
+                        proxy_hide_header Set-Cookie;
+			proxy_http_version 1.1;
+			proxy_buffering off;
+                        sub_filter_types *;
+                        sub_filter_once off;
+
+		}
+	}
+}
